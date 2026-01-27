@@ -1,0 +1,9 @@
+TimeTickIt_Output_YYYYMMDD.zip
+│
+├─ invoice.pdf
+│   - Employer-facing
+│   - Not encrypted
+│
+└─ administrative_record.pdf
+    - Internal verification
+    - Encrypted (password: adminv1)

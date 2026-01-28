@@ -6,8 +6,7 @@ if __name__ == "__main__":
     app = TimeTickItApp(root)
     
     def on_closing():
-        app.engine.handle_interruption()
-        root.destroy()
+        app.on_closing()
         
     root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()

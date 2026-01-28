@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import json
 from PIL import Image, ImageTk
+from pynput import mouse, keyboard
 
 from core.engine import CoreEngine, SystemState, MAX_INACTIVITY_SECONDS
 from core.session import SessionEndReason
@@ -26,10 +27,16 @@ class TimeTickItApp:
         self.setup_ui()
         self.update_loop()
         
-        # Bind keyboard and mouse to reset inactivity
-        self.root.bind_all("<Key>", lambda e: self.engine.handle_input())
-        self.root.bind_all("<Motion>", lambda e: self.engine.handle_input())
-        self.root.bind_all("<Button>", lambda e: self.engine.handle_input())
+        # Global listeners for keyboard and mouse to reset inactivity
+        self.mouse_listener = mouse.Listener(on_move=self.on_input, on_click=self.on_input, on_scroll=self.on_input)
+        self.key_listener = keyboard.Listener(on_press=self.on_input)
+        self.mouse_listener.start()
+        self.key_listener.start()
+
+    def on_input(self, *args):
+        self.engine.handle_input()
+        if hasattr(self, 'inactivity_label'):
+            self.root.after_idle(lambda: self.inactivity_label.config(text=""))
 
     def load_config(self):
         if os.path.exists(CONFIG_FILE):
@@ -190,16 +197,18 @@ class TimeTickItApp:
 
         self.root.after(1000, self.update_loop)
 
+    def on_closing(self):
+        self.mouse_listener.stop()
+        self.key_listener.stop()
+        self.engine.handle_interruption()
+        # Note: If we had persistence for completed sessions, we'd save them here.
+        # But the doc doesn't explicitly mention persistence of history yet, 
+        # just that the app terminates and records last known time.
+        self.root.destroy()
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = TimeTickItApp(root)
     
-    def on_closing():
-        app.engine.handle_interruption()
-        # Note: If we had persistence for completed sessions, we'd save them here.
-        # But the doc doesn't explicitly mention persistence of history yet, 
-        # just that the app terminates and records last known time.
-        root.destroy()
-        
-    root.protocol("WM_DELETE_WINDOW", on_closing)
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
     root.mainloop()

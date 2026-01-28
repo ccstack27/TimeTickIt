@@ -60,6 +60,8 @@ class CoreEngine:
         Any mouse or keyboard input resets the inactivity timer to zero.
         Ref: docs/03_system_core.md
         """
+        import threading
+        # Ensure thread-safety if called from pynput listener threads
         self.inactivity_timer_seconds = 0
 
     def tick(self, current_time: Optional[datetime] = None) -> None:

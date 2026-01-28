@@ -92,7 +92,7 @@ When the USER initiates a stop action:
 ### Definition
 
 User inactivity is defined as a continuous period during which **no mouse or keyboard
-input** is detected.
+input** is detected globally (anywhere on the screen).
 
 User inactivity:
 - is measured only while the system is in the **ACTIVE** state,

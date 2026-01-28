@@ -77,7 +77,7 @@ A **TASK** is an optional, free-text label associated with a SESSION.
 ## USER INACTIVITY
 
 **USER INACTIVITY** is a continuous period during which no mouse or keyboard input
-is detected from the USER.
+is detected globally (anywhere on the screen).
 
 - It is measured only while a SESSION is active.
 - Inactivity outside an active SESSION is not tracked.

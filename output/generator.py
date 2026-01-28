@@ -20,11 +20,11 @@ class OutputGenerator:
     Ref: docs/04_output.md
     """
 
-    def generate_package(self, sessions: List[Session], output_path: str, user_name: str = "Employee"):
+    def generate_package(self, sessions: List[Session], output_path: str, user_name: str = "Employee", hourly_rate: float = 0.0):
         """
         Creates a ZIP file containing invoice.pdf and administrative_record.pdf.
         """
-        invoice_data = self._render_invoice(sessions, user_name)
+        invoice_data = self._render_invoice(sessions, user_name, hourly_rate)
         admin_record_data = self._render_administrative_record(sessions, user_name)
         
         # Encrypt the administrative record
@@ -34,7 +34,7 @@ class OutputGenerator:
             zf.writestr("invoice.pdf", invoice_data)
             zf.writestr("administrative_record.pdf", encrypted_admin_record)
 
-    def _render_invoice(self, sessions: List[Session], user_name: str) -> bytes:
+    def _render_invoice(self, sessions: List[Session], user_name: str, hourly_rate: float) -> bytes:
         """
         Renders the invoice PDF. Does not expose inactivity details.
         """
@@ -47,11 +47,12 @@ class OutputGenerator:
         
         c.setFont("Helvetica", 12)
         c.drawString(50, height - 80, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        c.drawString(50, height - 100, f"Hourly Rate: Php {hourly_rate:,.2f} / hour")
         
-        y = height - 120
+        y = height - 140
         c.drawString(50, y, "Start Time")
         c.drawString(200, y, "End Time")
-        c.drawString(350, y, "Duration (s)")
+        c.drawString(350, y, "Duration (h)")
         c.drawString(450, y, "Task")
         
         y -= 20
@@ -64,10 +65,11 @@ class OutputGenerator:
             
             duration = s.get_duration_seconds()
             total_seconds += duration
+            duration_hours = duration / 3600.0
             
             c.drawString(50, y, s.start_time.strftime('%Y-%m-%d %H:%M:%S'))
             c.drawString(200, y, s.end_time.strftime('%Y-%m-%d %H:%M:%S'))
-            c.drawString(350, y, str(duration))
+            c.drawString(350, y, f"{duration_hours:.4f}")
             c.drawString(450, y, s.task[:20])
             y -= 15
             if y < 50:
@@ -77,7 +79,12 @@ class OutputGenerator:
         y -= 10
         c.line(50, y + 5, 550, y + 5)
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, y - 15, f"ACCUMULATED SESSION TIME (AST): {total_seconds} seconds")
+        
+        total_hours = total_seconds / 3600.0
+        amount_to_be_paid = hourly_rate * total_hours
+        
+        c.drawString(50, y - 15, f"ACCUMULATED SESSION TIME (AST): {total_hours:.4f} hours")
+        c.drawString(50, y - 35, f"AMOUNT TO BE PAID: Php {amount_to_be_paid:,.2f}")
 
         c.save()
         return buffer.getvalue()
@@ -131,7 +138,9 @@ class OutputGenerator:
         y -= 10
         c.line(50, y + 5, 550, y + 5)
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, y - 15, f"ACCUMULATED SESSION TIME (AST): {total_seconds} seconds")
+        
+        total_hours = total_seconds / 3600.0
+        c.drawString(50, y - 15, f"ACCUMULATED SESSION TIME (AST): {total_hours:.4f} hours")
 
         c.save()
         return buffer.getvalue()

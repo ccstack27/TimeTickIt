@@ -27,7 +27,7 @@ class TestOutputGenerator(unittest.TestCase):
             os.remove(self.test_zip)
 
     def test_generate_package_creates_zip_with_two_pdfs(self):
-        self.generator.generate_package(self.sessions, self.test_zip)
+        self.generator.generate_package(self.sessions, self.test_zip, hourly_rate=500.0)
         self.assertTrue(os.path.exists(self.test_zip))
         
         with zipfile.ZipFile(self.test_zip, 'r') as zf:
@@ -37,7 +37,7 @@ class TestOutputGenerator(unittest.TestCase):
             self.assertEqual(len(file_list), 2)
 
     def test_administrative_record_is_encrypted(self):
-        self.generator.generate_package(self.sessions, self.test_zip)
+        self.generator.generate_package(self.sessions, self.test_zip, hourly_rate=500.0)
         
         with zipfile.ZipFile(self.test_zip, 'r') as zf:
             admin_pdf_data = zf.read("administrative_record.pdf")
@@ -50,7 +50,7 @@ class TestOutputGenerator(unittest.TestCase):
         self.assertTrue(success)
 
     def test_invoice_is_not_encrypted(self):
-        self.generator.generate_package(self.sessions, self.test_zip)
+        self.generator.generate_package(self.sessions, self.test_zip, hourly_rate=500.0)
         
         with zipfile.ZipFile(self.test_zip, 'r') as zf:
             invoice_pdf_data = zf.read("invoice.pdf")

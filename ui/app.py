@@ -18,7 +18,7 @@ class TimeTickItApp:
     def __init__(self, root):
         self.root = root
         self.root.title("TimeTickIt")
-        self.root.geometry("500x600")
+        self.root.geometry("400x500")
         
         self.engine = CoreEngine()
         self.generator = OutputGenerator()
@@ -44,16 +44,30 @@ class TimeTickItApp:
                 with open(CONFIG_FILE, 'r') as f:
                     self.config = json.load(f)
             except:
-                self.config = {"user_name": "Employee", "avatar_index": 0}
+                self.config = {"user_name": "Employee", "avatar_index": 0, "hourly_rate": 0.0}
         else:
-            self.config = {"user_name": "Employee", "avatar_index": 0}
+            self.config = {"user_name": "Employee", "avatar_index": 0, "hourly_rate": 0.0}
         
         self.user_name_var = tk.StringVar(value=self.config.get("user_name", "Employee"))
+        self.hourly_rate_var = tk.StringVar(value=str(self.config.get("hourly_rate", 0.0)))
         self.avatar_index = self.config.get("avatar_index", 0)
+
+        # Restore completed sessions
+        saved_sessions = self.config.get("completed_sessions", [])
+        from core.session import Session
+        self.engine.completed_sessions = [Session.from_dict(s) for s in saved_sessions]
 
     def save_config(self):
         self.config["user_name"] = self.user_name_var.get()
+        try:
+            self.config["hourly_rate"] = float(self.hourly_rate_var.get())
+        except ValueError:
+            self.config["hourly_rate"] = 0.0
         self.config["avatar_index"] = self.avatar_index
+        
+        # Save completed sessions
+        self.config["completed_sessions"] = [s.to_dict() for s in self.engine.completed_sessions]
+        
         with open(CONFIG_FILE, 'w') as f:
             json.dump(self.config, f)
 
@@ -68,9 +82,17 @@ class TimeTickItApp:
         name_frame = tk.Frame(self.root)
         name_frame.pack(pady=5)
         tk.Label(name_frame, text="User Name:").pack(side=tk.LEFT)
-        name_entry = tk.Entry(name_frame, textvariable=self.user_name_var)
-        name_entry.pack(side=tk.LEFT, padx=5)
-        name_entry.bind("<FocusOut>", lambda e: self.save_config())
+        self.name_entry = tk.Entry(name_frame, textvariable=self.user_name_var)
+        self.name_entry.pack(side=tk.LEFT, padx=5)
+        self.name_entry.bind("<FocusOut>", lambda e: self.save_config())
+
+        # Hourly Rate (Editable)
+        rate_frame = tk.Frame(self.root)
+        rate_frame.pack(pady=5)
+        tk.Label(rate_frame, text="Hourly Rate (Php/hour):").pack(side=tk.LEFT)
+        self.rate_entry = tk.Entry(rate_frame, textvariable=self.hourly_rate_var)
+        self.rate_entry.pack(side=tk.LEFT, padx=5)
+        self.rate_entry.bind("<FocusOut>", lambda e: self.save_config())
         
         # Divider
         ttk.Separator(self.root, orient='horizontal').pack(fill='x', padx=20, pady=10)
@@ -132,6 +154,7 @@ class TimeTickItApp:
         self.engine.stop_session()
         self.task_entry.config(state=tk.NORMAL)
         self.task_var.set("")
+        self.save_config()
 
     def generate_output(self):
         if not self.engine.completed_sessions:
@@ -150,8 +173,11 @@ class TimeTickItApp:
                 self.generator.generate_package(
                     self.engine.completed_sessions, 
                     file_path, 
-                    user_name=self.user_name_var.get()
+                    user_name=self.user_name_var.get(),
+                    hourly_rate=self.config.get("hourly_rate", 0.0)
                 )
+                self.engine.completed_sessions = []
+                self.save_config()
                 messagebox.showinfo("Output", f"Output package generated successfully at:\n{file_path}")
             except Exception as e:
                 messagebox.showerror("Output Error", f"Failed to generate output: {str(e)}")
@@ -169,9 +195,18 @@ class TimeTickItApp:
                 messagebox.showinfo("Notification", "Session ended automatically due to inactivity.")
                 self.task_entry.config(state=tk.NORMAL)
                 self.task_var.set("")
+            self.save_config()
 
         # Update UI elements
         self.state_label.config(text=f"STATE: {self.engine.state.name}")
+
+        # Locking logic for User Name and Hourly Rate
+        if self.engine.state == SystemState.ACTIVE or self.engine.completed_sessions:
+            self.name_entry.config(state=tk.DISABLED)
+            self.rate_entry.config(state=tk.DISABLED)
+        else:
+            self.name_entry.config(state=tk.NORMAL)
+            self.rate_entry.config(state=tk.NORMAL)
         
         if self.engine.state == SystemState.ACTIVE:
             self.start_btn.config(state=tk.DISABLED)
@@ -179,11 +214,17 @@ class TimeTickItApp:
             
             s = self.engine.active_session
             elapsed = int((datetime.now() - s.start_time).total_seconds())
+            hours, remainder = divmod(elapsed, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            elapsed_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            
             start_str = s.start_time.strftime('%H:%M:%S')
-            self.timing_info_label.config(text=f"Session Start: {start_str} | Elapsed: {elapsed}s")
+            self.timing_info_label.config(text=f"Session Start: {start_str} | Elapsed: {elapsed_str}")
             
             # Inactivity feedback
-            if self.engine.inactivity_timer_seconds > 0:
+            # Show countdown only after passing 3 minutes (remaining < 3 mins)
+            # 5:00 - 3:00 = 2:00 (120 seconds)
+            if self.engine.inactivity_timer_seconds > 120:
                 remaining = MAX_INACTIVITY_SECONDS - self.engine.inactivity_timer_seconds
                 mins, secs = divmod(remaining, 60)
                 self.inactivity_label.config(text=f"No activity detected — session will end in {mins:02d}:{secs:02d}")
@@ -201,9 +242,7 @@ class TimeTickItApp:
         self.mouse_listener.stop()
         self.key_listener.stop()
         self.engine.handle_interruption()
-        # Note: If we had persistence for completed sessions, we'd save them here.
-        # But the doc doesn't explicitly mention persistence of history yet, 
-        # just that the app terminates and records last known time.
+        self.save_config()
         self.root.destroy()
 
 if __name__ == "__main__":

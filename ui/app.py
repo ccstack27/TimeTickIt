@@ -18,7 +18,7 @@ class TimeTickItApp:
     def __init__(self, root):
         self.root = root
         self.root.title("TimeTickIt")
-        self.root.geometry("400x500")
+        self.root.geometry("300x500")
         
         self.engine = CoreEngine()
         self.generator = OutputGenerator()
@@ -72,64 +72,66 @@ class TimeTickItApp:
             json.dump(self.config, f)
 
     def setup_ui(self):
+        self.root.columnconfigure(0, weight=1)
+        
         # Avatar
         self.avatar_label = tk.Label(self.root)
-        self.avatar_label.pack(pady=10)
+        self.avatar_label.grid(row=0, column=0, rowspan=4)
         self.avatar_label.bind("<Button-1>", self.cycle_avatar)
         self.update_avatar_display()
         
         # User Name (Editable)
         name_frame = tk.Frame(self.root)
-        name_frame.pack(pady=5)
-        tk.Label(name_frame, text="User Name:").pack(side=tk.LEFT)
+        name_frame.grid(row=0, column=1)
+        tk.Label(name_frame, text="Name:").grid(row=0, column=0)
         self.name_entry = tk.Entry(name_frame, textvariable=self.user_name_var)
-        self.name_entry.pack(side=tk.LEFT, padx=5)
+        self.name_entry.grid(row=0, column=1, padx=20)
         self.name_entry.bind("<FocusOut>", lambda e: self.save_config())
 
         # Hourly Rate (Editable)
         rate_frame = tk.Frame(self.root)
-        rate_frame.pack(pady=5)
-        tk.Label(rate_frame, text="Hourly Rate (Php/hour):").pack(side=tk.LEFT)
+        rate_frame.grid(row=1, column=1)
+        tk.Label(rate_frame, text="Rate:").grid(row=0, column=0)
         self.rate_entry = tk.Entry(rate_frame, textvariable=self.hourly_rate_var)
-        self.rate_entry.pack(side=tk.LEFT, padx=5)
+        self.rate_entry.grid(row=0, column=1, padx=20)
         self.rate_entry.bind("<FocusOut>", lambda e: self.save_config())
         
         # Divider
-        ttk.Separator(self.root, orient='horizontal').pack(fill='x', padx=20, pady=10)
+        ttk.Separator(self.root, orient='horizontal').grid(row=5, column=0, sticky='ew', padx=20, pady=10, columnspan=2)
         
         # State Display
         self.state_label = tk.Label(self.root, font=("Helvetica", 14, "bold"))
-        self.state_label.pack(pady=5)
+        self.state_label.grid(row=6, column=0, pady=5, columnspan=2)
         
         # Timing Information
         self.timing_info_label = tk.Label(self.root, font=("Helvetica", 10))
-        self.timing_info_label.pack(pady=5)
+        self.timing_info_label.grid(row=7, column=0, pady=5, columnspan=2)
         
         # Inactivity Feedback
         self.inactivity_label = tk.Label(self.root, font=("Helvetica", 10, "italic"), fg="red")
-        self.inactivity_label.pack(pady=5)
+        self.inactivity_label.grid(row=8, column=0, pady=5, columnspan=2)
         
         # Task Entry
         task_frame = tk.Frame(self.root)
-        task_frame.pack(pady=5)
-        tk.Label(task_frame, text="Task (optional):").pack(side=tk.LEFT)
+        task_frame.grid(row=2, column=1)
+        tk.Label(task_frame, text="Task:").grid(row=0, column=0)
         self.task_var = tk.StringVar()
         self.task_entry = tk.Entry(task_frame, textvariable=self.task_var)
-        self.task_entry.pack(side=tk.LEFT, padx=5)
+        self.task_entry.grid(row=0, column=1, padx=20)
         
         # Controls
         control_frame = tk.Frame(self.root)
-        control_frame.pack(pady=20)
+        control_frame.grid(row=9, column=0, pady=20, columnspan=2)
         
         self.start_btn = tk.Button(control_frame, text="Start Session", command=self.start_session, width=15)
-        self.start_btn.pack(side=tk.LEFT, padx=10)
+        self.start_btn.grid(row=0, column=0, padx=10)
         
         self.stop_btn = tk.Button(control_frame, text="Stop Session", command=self.stop_session, width=15)
-        self.stop_btn.pack(side=tk.LEFT, padx=10)
+        self.stop_btn.grid(row=0, column=1, padx=10)
         
         # Output Trigger
         self.output_btn = tk.Button(self.root, text="Generate Output", command=self.generate_output)
-        self.output_btn.pack(pady=20)
+        self.output_btn.grid(row=10, column=0, pady=20, columnspan=2)
 
     def cycle_avatar(self, event):
         self.avatar_index = (self.avatar_index + 1) % len(AVATARS)

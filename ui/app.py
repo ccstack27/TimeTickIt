@@ -18,7 +18,7 @@ class TimeTickItApp:
     def __init__(self, root):
         self.root = root
         self.root.title("TimeTickIt")
-        self.root.geometry("300x500")
+        self.root.geometry("320x400")
         
         self.engine = CoreEngine()
         self.generator = OutputGenerator()
@@ -71,67 +71,135 @@ class TimeTickItApp:
         with open(CONFIG_FILE, 'w') as f:
             json.dump(self.config, f)
 
+    def create_menu_bar(self):
+        menubar = tk.Menu(self.root)
+
+        # Account Menu
+        account_menu = tk.Menu(menubar, tearoff=0)
+        account_menu.add_command(label="See Record", command=self.show_record)
+        menubar.add_cascade(label="Account", menu=account_menu)
+
+        # Help Menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+
+        self.root.config(menu=menubar)
+
+    def show_record(self):
+        record_window = tk.Toplevel(self.root)
+        record_window.title("Account Record")
+        record_window.geometry("400x300")
+        
+        # Use a canvas with a scrollbar in case there are many sessions
+        main_frame = tk.Frame(record_window)
+        main_frame.pack(fill=tk.BOTH, expand=1)
+
+        canvas = tk.Canvas(main_frame)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+
+        scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        content_frame = tk.Frame(canvas)
+        canvas.create_window((0, 0), window=content_frame, anchor="nw")
+
+        tk.Label(content_frame, text="Session History", font=("Helvetica", 12, "bold")).pack(pady=10)
+
+        total_seconds = 0
+        if not self.engine.completed_sessions:
+            tk.Label(content_frame, text="No recorded sessions yet.").pack(pady=5)
+        else:
+            for i, session in enumerate(self.engine.completed_sessions):
+                duration = session.get_duration_seconds()
+                total_seconds += duration
+                
+                hours, remainder = divmod(duration, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                
+                start_str = session.start_time.strftime('%Y-%m-%d %H:%M:%S')
+                task_text = f"Task: {session.task}" if session.task else "Task: [No Task]"
+                
+                session_text = f"{i+1}. {start_str} | Duration: {duration_str}\n   {task_text}"
+                tk.Label(content_frame, text=session_text, justify=tk.LEFT, anchor="w").pack(fill=tk.X, padx=10, pady=2)
+
+        # Accumulated Time at the bottom
+        total_hours, total_remainder = divmod(total_seconds, 3600)
+        total_minutes, total_seconds_final = divmod(total_remainder, 60)
+        total_time_str = f"{total_hours:02d}:{total_minutes:02d}:{total_seconds_final:02d}"
+
+        tk.Label(record_window, text=f"Accumulated Session Time: {total_time_str}", font=("Helvetica", 10, "bold")).pack(pady=10)
+
     def setup_ui(self):
         self.root.columnconfigure(0, weight=1)
         
+        # Menu Bar
+        self.create_menu_bar()
+
+        # Empty grid at the top
+        tk.Label(self.root, text="").grid(row=0, column=0, columnspan=2)
+
         # Avatar
         self.avatar_label = tk.Label(self.root)
-        self.avatar_label.grid(row=0, column=0, rowspan=4)
+        self.avatar_label.grid(row=1, column=0, rowspan=4)
         self.avatar_label.bind("<Button-1>", self.cycle_avatar)
         self.update_avatar_display()
         
         # User Name (Editable)
         name_frame = tk.Frame(self.root)
-        name_frame.grid(row=0, column=1)
+        name_frame.grid(row=1, column=1, sticky='w')
         tk.Label(name_frame, text="Name:").grid(row=0, column=0)
-        self.name_entry = tk.Entry(name_frame, textvariable=self.user_name_var)
-        self.name_entry.grid(row=0, column=1, padx=20)
+        self.name_entry = tk.Entry(name_frame, textvariable=self.user_name_var, highlightthickness=0)
+        self.name_entry.grid(row=0, column=1, padx=8)
         self.name_entry.bind("<FocusOut>", lambda e: self.save_config())
 
         # Hourly Rate (Editable)
         rate_frame = tk.Frame(self.root)
-        rate_frame.grid(row=1, column=1)
+        rate_frame.grid(row=2, column=1, sticky='w')
         tk.Label(rate_frame, text="Rate:").grid(row=0, column=0)
-        self.rate_entry = tk.Entry(rate_frame, textvariable=self.hourly_rate_var)
-        self.rate_entry.grid(row=0, column=1, padx=20)
+        self.rate_entry = tk.Entry(rate_frame, textvariable=self.hourly_rate_var, highlightthickness=0)
+        self.rate_entry.grid(row=0, column=1, padx=17)
         self.rate_entry.bind("<FocusOut>", lambda e: self.save_config())
-        
+
+        # Task Entry
+        task_frame = tk.Frame(self.root)
+        task_frame.grid(row=3, column=1, sticky='w')
+        tk.Label(task_frame, text="Task:").grid(row=0, column=0)
+        self.task_var = tk.StringVar()
+        self.task_entry = tk.Entry(task_frame, textvariable=self.task_var, highlightthickness=0)
+        self.task_entry.grid(row=0, column=1, padx=16)
+
         # Divider
-        ttk.Separator(self.root, orient='horizontal').grid(row=5, column=0, sticky='ew', padx=20, pady=10, columnspan=2)
+        ttk.Separator(self.root, orient='horizontal').grid(row=6, column=0, sticky='ew', padx=20, pady=10, columnspan=2)
         
         # State Display
         self.state_label = tk.Label(self.root, font=("Helvetica", 14, "bold"))
-        self.state_label.grid(row=6, column=0, pady=5, columnspan=2)
+        self.state_label.grid(row=7, column=0, pady=5, columnspan=2)
         
         # Timing Information
         self.timing_info_label = tk.Label(self.root, font=("Helvetica", 10))
-        self.timing_info_label.grid(row=7, column=0, pady=5, columnspan=2)
+        self.timing_info_label.grid(row=8, column=0, pady=5, columnspan=2)
         
         # Inactivity Feedback
         self.inactivity_label = tk.Label(self.root, font=("Helvetica", 10, "italic"), fg="red")
-        self.inactivity_label.grid(row=8, column=0, pady=5, columnspan=2)
-        
-        # Task Entry
-        task_frame = tk.Frame(self.root)
-        task_frame.grid(row=2, column=1)
-        tk.Label(task_frame, text="Task:").grid(row=0, column=0)
-        self.task_var = tk.StringVar()
-        self.task_entry = tk.Entry(task_frame, textvariable=self.task_var)
-        self.task_entry.grid(row=0, column=1, padx=20)
+        self.inactivity_label.grid(row=9, column=0, pady=5, columnspan=2)
         
         # Controls
         control_frame = tk.Frame(self.root)
-        control_frame.grid(row=9, column=0, pady=20, columnspan=2)
+        control_frame.grid(row=10, column=0, pady=10, columnspan=2)
         
-        self.start_btn = tk.Button(control_frame, text="Start Session", command=self.start_session, width=15)
-        self.start_btn.grid(row=0, column=0, padx=10)
+        self.start_btn = tk.Button(control_frame, text="Start", font=("Arial", 14), command=self.start_session, height=2, width=11)
+        self.start_btn.grid(row=0, column=0, padx=5)
         
-        self.stop_btn = tk.Button(control_frame, text="Stop Session", command=self.stop_session, width=15)
-        self.stop_btn.grid(row=0, column=1, padx=10)
+        self.stop_btn = tk.Button(control_frame, text="Stop", font=("Arial", 14), command=self.stop_session, height=2, width=11)
+        self.stop_btn.grid(row=0, column=1, padx=5)
         
         # Output Trigger
-        self.output_btn = tk.Button(self.root, text="Generate Output", command=self.generate_output)
-        self.output_btn.grid(row=10, column=0, pady=20, columnspan=2)
+        self.output_btn = tk.Button(self.root, text="Generate Invoice", font=("Arial", 9), command=self.generate_output, width=37)
+        self.output_btn.grid(row=11, column=0, columnspan=2)
 
     def cycle_avatar(self, event):
         self.avatar_index = (self.avatar_index + 1) % len(AVATARS)
@@ -141,12 +209,15 @@ class TimeTickItApp:
     def update_avatar_display(self):
         avatar_path = os.path.join(ASSETS_DIR, AVATARS[self.avatar_index])
         if os.path.exists(avatar_path):
-            img = Image.open(avatar_path)
-            img = img.resize((100, 100), Image.LANCZOS)
-            self.avatar_photo = ImageTk.PhotoImage(img)
-            self.avatar_label.config(image=self.avatar_photo)
+            try:
+                img = Image.open(avatar_path)
+                img = img.resize((100, 100), Image.LANCZOS)
+                self.avatar_photo = ImageTk.PhotoImage(img)
+                self.avatar_label.config(image=self.avatar_photo, text="")
+            except Exception:
+                self.avatar_label.config(text="[Error]", image="")
         else:
-            self.avatar_label.config(text="[Avatar]")
+            self.avatar_label.config(text="[Missing]", image="")
 
     def start_session(self):
         self.engine.start_session(task=self.task_var.get())

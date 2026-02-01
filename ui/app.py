@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 from datetime import datetime
 import os
 import json
+import webbrowser
 from PIL import Image, ImageTk
 from pynput import mouse, keyboard
 
@@ -81,9 +82,17 @@ class TimeTickItApp:
 
         # Help Menu
         help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="How to Use", command=self.open_how_to_use)
+        help_menu.add_command(label="About", command=self.open_about)
         menubar.add_cascade(label="Help", menu=help_menu)
 
         self.root.config(menu=menubar)
+
+    def open_how_to_use(self):
+        webbrowser.open("https://github.com/ccstack27/TimeTickIt/blob/main/README.md")
+
+    def open_about(self):
+        webbrowser.open("https://github.com/ccstack27/TimeTickIt/blob/main/docs/00_about.md")
 
     def show_record(self):
         record_window = tk.Toplevel(self.root)

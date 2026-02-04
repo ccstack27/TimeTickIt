@@ -21,3 +21,13 @@ dist/
 
 # Logs
 *.log
+
+# Release artifacts (installer output)
+release/
+
+# Local app/user config (machine-specific)
+config.json
+ui/config.json
+
+# Windows binaries accidentally generated inside repo
+*.exe

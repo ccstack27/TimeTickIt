@@ -6,14 +6,36 @@ import json
 import webbrowser
 from PIL import Image, ImageTk
 from pynput import mouse, keyboard
+import sys
+from pathlib import Path
 
 from core.engine import CoreEngine, SystemState, MAX_INACTIVITY_SECONDS
 from core.session import SessionEndReason
 from output.generator import OutputGenerator
 
-CONFIG_FILE = "config.json"
+def _app_base_dir() -> Path:
+    """
+    Returns the directory that contains bundled app resources.
+    - PyInstaller: sys._MEIPASS (temp unpack folder)
+    - Normal run: project root (based on this file's location)
+    """
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
+
+def _user_data_dir() -> Path:
+    """
+    Per-user writable data location on Windows.
+    """
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    return Path(base) / "TimeTickIt"
+
+APP_BASE_DIR = _app_base_dir()
+USER_DATA_DIR = _user_data_dir()
+CONFIG_FILE = USER_DATA_DIR / "config.json"
+
 AVATARS = ["cat.png", "dog.png", "fox.png", "panda.png"]
-ASSETS_DIR = "assets"
+ASSETS_DIR = APP_BASE_DIR / "assets"
 
 class TimeTickItApp:
     def __init__(self, root):
@@ -40,11 +62,21 @@ class TimeTickItApp:
             self.root.after_idle(lambda: self.inactivity_label.config(text=""))
 
     def load_config(self):
-        if os.path.exists(CONFIG_FILE):
+        USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Migration: if an old config exists next to the app but the new one doesn't, use old once.
+        legacy_config = Path("config.json")
+        if not CONFIG_FILE.exists() and legacy_config.exists():
             try:
-                with open(CONFIG_FILE, 'r') as f:
+                CONFIG_FILE.write_text(legacy_config.read_text(encoding="utf-8"), encoding="utf-8")
+            except Exception:
+                pass
+
+        if CONFIG_FILE.exists():
+            try:
+                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     self.config = json.load(f)
-            except:
+            except Exception:
                 self.config = {"user_name": "Employee", "avatar_index": 0, "hourly_rate": 0.0}
         else:
             self.config = {"user_name": "Employee", "avatar_index": 0, "hourly_rate": 0.0}
@@ -59,6 +91,8 @@ class TimeTickItApp:
         self.engine.completed_sessions = [Session.from_dict(s) for s in saved_sessions]
 
     def save_config(self):
+        USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
         self.config["user_name"] = self.user_name_var.get()
         try:
             self.config["hourly_rate"] = float(self.hourly_rate_var.get())
@@ -69,7 +103,7 @@ class TimeTickItApp:
         # Save completed sessions
         self.config["completed_sessions"] = [s.to_dict() for s in self.engine.completed_sessions]
         
-        with open(CONFIG_FILE, 'w') as f:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(self.config, f)
 
     def create_menu_bar(self):
@@ -216,8 +250,8 @@ class TimeTickItApp:
         self.save_config()
 
     def update_avatar_display(self):
-        avatar_path = os.path.join(ASSETS_DIR, AVATARS[self.avatar_index])
-        if os.path.exists(avatar_path):
+        avatar_path = ASSETS_DIR / AVATARS[self.avatar_index]
+        if avatar_path.exists():
             try:
                 img = Image.open(avatar_path)
                 img = img.resize((100, 100), Image.LANCZOS)

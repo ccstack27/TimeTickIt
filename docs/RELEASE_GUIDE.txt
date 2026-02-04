@@ -1,0 +1,99 @@
+TimeTickIt — Release Guide (Windows Installer)
+=============================================
+
+Purpose
+-------
+This guide explains how to release a new version of TimeTickIt as a proper Windows
+per-user installer (setup.exe) after updating the Python code.
+
+Assumptions
+-----------
+- You are working from the project root folder (the folder containing main.py).
+- Your virtual environment (.venv) is active in the terminal.
+- PyInstaller is installed in the venv.
+- Inno Setup is installed.
+- The installer script is installer.iss.
+- The app stores per-user data under:
+  %LOCALAPPDATA%\TimeTickIt\config.json
+
+Release Steps
+-------------
+
+1) Choose a new version number
+   - Decide the next version (example: 1.0.1).
+   - Update installer.iss:
+       AppVersion=1.0.1
+   - (Optional) Update README or CHANGELOG if you keep one.
+
+2) Run tests / quick manual QA
+   - In Terminal (from project root):
+       python -m unittest
+   - Run the app normally:
+       python main.py
+   - Verify core flows you care about.
+
+3) Clean old build artifacts (PowerShell)
+   - Run:
+       Remove-Item -Recurse -Force .\build -ErrorAction SilentlyContinue
+       Remove-Item -Recurse -Force .\dist -ErrorAction SilentlyContinue
+       Remove-Item -Force .\TimeTickIt.spec -ErrorAction SilentlyContinue
+
+   Notes:
+   - If you later customize and rely on a .spec file, do NOT delete it; rebuild using the .spec instead.
+
+4) Build the app bundle with PyInstaller (one-folder)
+   - Run (PowerShell):
+       pyinstaller --noconsole --name TimeTickIt `
+         --add-data "assets;assets" `
+         main.py
+
+   - Expected output:
+       .\dist\TimeTickIt\TimeTickIt.exe
+
+5) Test the built executable
+   - Run:
+       .\dist\TimeTickIt\TimeTickIt.exe
+
+   - Quick checks:
+     - App launches
+     - Avatars/assets display correctly
+     - Change Name/Rate, close, reopen -> persists
+     - No errors on close
+
+6) Build the installer with Inno Setup
+   - Open Inno Setup Compiler
+   - Open installer.iss
+   - Confirm AppVersion is correct
+   - Press F9 (Compile)
+
+   - Expected output (example):
+       .\release\TimeTickItSetup.exe
+
+7) Installer test (treat it like an end-user install)
+   - Run the installer:
+       .\release\TimeTickItSetup.exe
+   - Confirm:
+     - Start Menu shortcut exists and launches the app
+     - Optional desktop icon works (if selected)
+
+   - Confirm per-user config exists after first run:
+       Test-Path "$env:LOCALAPPDATA\TimeTickIt\config.json"
+     Expected: True
+
+8) Uninstall / reinstall sanity check (recommended)
+   - Uninstall from Windows Settings > Apps (or Start Menu Uninstall).
+   - Confirm user data remains (expected behavior):
+       Test-Path "$env:LOCALAPPDATA\TimeTickIt\config.json"
+     Expected: True
+
+9) Publish
+   - Distribute only the installer:
+       release\TimeTickItSetup.exe
+   - Avoid distributing build folders or source code unless intended.
+
+Optional Improvements (Later)
+-----------------------------
+- Add CHANGELOG.md and record changes per version.
+- Make installer filename include the version, e.g. TimeTickItSetup-1.0.1.exe
+  (by adjusting OutputBaseFilename each release).
+- Code signing (reduces SmartScreen warnings) — skipped for now.
